@@ -19,6 +19,7 @@
 import argparse
 import logging
 import os
+from pathlib import Path
 import sys
 from typing import List
 
@@ -105,9 +106,25 @@ def parse_args(args: List[str]) -> argparse.Namespace:
     return parser.parse_args(args)
 
 
+def setup_data_dir():
+    """
+    Set up the working directory where this tool will build Docker images.
+
+    We need to copy files into this directory.
+    The user potentially installed this package into a place needing root privileges to write.
+    Therefore, we can't use the existing Dockerfiles in place,
+    so we create a directory under the user's home.
+    """
+    user_config_dir = Path.home() / '.ros_cross_compile' / 'bin'
+    user_config_dir.mkdir(parents=True, exists_ok=True)
+
+    if sys.platform == 'linux':
+        # copy qemu bins
+        pass
+
+
 def cross_compile_pipeline():
-    native_base_name = build_native_base()
-    native_rosdep_name = build_native_rosdep(base_image=native_base_name)
+    native_rosdep_name = build_native_rosdep()
     rosdeps_script = collect_rosdeps(workspace, native_rosdep_name)
 
     target_base_name = build_target_base()
@@ -131,7 +148,7 @@ def main():
                                      custom_setup_script_path=args.custom_setup_script,
                                      custom_data_dir=args.custom_data_dir)
     sysroot_creator.create_workspace_sysroot_image()
-    ros_workspace_dir = os.path.join(args.sysroot_path, 'sysroot', args.ros_workspace)
+    ros_workspace_dir = Path(args.sysroot_path) / 'sysroot' / args.ros_workspace
     run_emulated_docker_build(platform.sysroot_image_tag, ros_workspace_dir)
 
 
